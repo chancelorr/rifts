@@ -1,0 +1,10 @@
+Data cleanup:
+
+Done
+rift advector: in working order
+
+To do still:
+Rift Retreival: more manual method
+Rift script: more automatic for processing everything for a rift
+melange analysis: needs work with file naming
+csg: supposed to be an openaltimetry approach in case sliderule isn't working
