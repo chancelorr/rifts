@@ -148,6 +148,7 @@ def get06Data(parms, file06_load=None, accessType=0, file06_save=None, sFlag06=0
     Get ATL06 data using specified method (open .geojson, .csv, or process new using sliderule)
     If processing anew, save as .geojson or .csv if specified
     '''
+    if not os.path.isfile(file06_load): accessType=0
     
     if accessType == 0:
         print('Processing new ATL06-SR dataset')
@@ -198,15 +199,18 @@ def getRegion(site, cycle):
     given site, cycle, opens available .geojson geometry and imports it as a geodataframe geometry
     '''
     
-    #try:     
-    shpPath = f"../shapes/{site}/{site}_{cycle}.geojson"
-    # Read in EPSG:3031 shapefile and convert to EPSG:4326
-    shpFile = gpd.read_file(shpPath)
-    shpFile.crs = 'EPSG:3031'
-    target_epsg = 'EPSG:4326'
-    shpDF = shpFile.to_crs(target_epsg)
-    region = sliderule.toregion(shpDF)["poly"]
-    #except: print(f'Error getting region: .geojson geometry may not exist for {site}, cycle {cycle}')
+    try:     
+        shpPath = f"../shapes/{shelf}/{site}_{cycle}.geojson"
+        if not os.path.isfile(shpPath): shpPath = f"../shapes/{shelf}/{site}_00.geojson"
+        # Read in EPSG:3031 shapefile and convert to EPSG:4326
+        shpFile = gpd.read_file(shpPath)
+        shpFile.crs = 'EPSG:3031'
+        target_epsg = 'EPSG:4326'
+        shpDF = shpFile.to_crs(target_epsg)
+        region = sliderule.toregion(shpDF)["poly"]
+    except: 
+        print(f'Error getting region: .geojson geometry may not exist for {site}, cycle {cycle}')
+        print(f' at path {shpPath}')
     return region
 
 def getTrack(dat, trackInfo):
