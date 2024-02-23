@@ -10,6 +10,8 @@ import h5py as h
 import matplotlib.pyplot as plt
 import geopandas as gpd
 from sliderule import sliderule, icesat2, earthdata, h5, ipysliderule, io
+from IPython import display
+from datetime import datetime
 
 #init sliderule
 icesat2.init("slideruleearth.io", verbose=False)
@@ -111,6 +113,7 @@ def display03Info(gdf):
         f" to {datetime.strptime(gdf.index.max()[:-3], '%Y-%m-%d %H:%M:%S.%f').date()}")
     return
 
+#There is an error reading 
 def display06Info(gdf):
     
     '''
@@ -128,8 +131,11 @@ def display06Info(gdf):
     print(f"Across {3*(len(np.unique(gdf.loc[:, 'rgt'])) + len(np.unique(gdf.loc[:, 'cycle'])))} strong tracks")
     # Exception here is only necessary when importing csv's
     try: print(f"Date range {gdf.index.min().date()} to {gdf.index.max().date()}")
+    except: print(f"Date range {pd.to_datetime(gdf.index, format='ISO8601').min().date()} to {pd.to_datetime(gdf.index, format='ISO8601').max().date()}")
+    '''
     except: print(f"Date range {datetime.strptime(gdf.index.min()[:-3], '%Y-%m-%d %H:%M:%S.%f').date()}" 
         f" to {datetime.strptime(gdf.index.max()[:-3], '%Y-%m-%d %H:%M:%S.%f').date()}")
+    '''
     print(f"Vertical range {gdf.h_mean.min()}m to {gdf.h_mean.max()}m")
     return
 
@@ -158,7 +164,9 @@ def get06Data(parms, file06_load=None, accessType=0, file06_save=None, sFlag06=0
         atl06_sr = atl06_sr[(atl06_sr.spot==2)+(atl06_sr.spot==4)+(atl06_sr.spot==6)]
 
         # Display Statistics 
-        if verbose: t.display06Info(atl06_sr)
+        if verbose: 
+            try: display06Info(atl06_sr)
+            except: print('Error displaying all info')
 
         # Save all data
         if sFlag06==1:
@@ -174,12 +182,14 @@ def get06Data(parms, file06_load=None, accessType=0, file06_save=None, sFlag06=0
         #load from geojson
         print('Downloading atl06-SR data upload from .geojson file')
         atl06_sr = gpd.read_file(f"{file06_load}.geojson").set_index('time')
-        if verbose: t.display06Info(atl06_sr)
+        if verbose: 
+            try: display06Info(atl06_sr)
+            except: print('Error displaying all info')
     elif accessType==2:
         # Load from csv (everything is a string)
         print('Downloading atl06-SR data upload from .csv file')
         atl06_sr = gpd.read_file(f"{file06_load}.csv").set_index('time')
-        if verbose: t.display06Info(atl06_sr)
+        if verbose: display06Info(atl06_sr)
     elif accessType==-1:
         print('skipping data download altogether')
     return atl06_sr
