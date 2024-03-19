@@ -101,6 +101,7 @@ def display03Info(gdf):
     vertical range
     '''
     
+    print("*********************************************************")
     print("Reference Ground Tracks: {}".format(gdf["rgt"].unique()))
     #print("Beams: {}".format([gtDict[b] for b in list(atl06_sr['gt'].unique())]))
     print("Spots: {}".format(gdf["spot"].unique()))
@@ -111,6 +112,7 @@ def display03Info(gdf):
     try: print(f"Date range {gdf.index.min().date()} to {gdf.index.max().date()}")
     except: print(f"Date range {datetime.strptime(gdf.index.min()[:-3], '%Y-%m-%d %H:%M:%S.%f').date()}" 
         f" to {datetime.strptime(gdf.index.max()[:-3], '%Y-%m-%d %H:%M:%S.%f').date()}")
+    print("*********************************************************")
     return
 
 #There is an error reading 
@@ -123,20 +125,24 @@ def display06Info(gdf):
     date range
     vertical range
     '''
-    
+    trackList = getTrackList(gdf, return_lens=False, omit=None, verbose=False, min_photons=0)
+    print("*********************************************************")
     print("Reference Ground Tracks: {}".format(gdf["rgt"].unique()))
     print("Beams: {}".format([gtDict[b] for b in list(gdf['gt'].unique())]))
     print("Cycles: {}".format(gdf["cycle"].unique()))
     print("Received {} elevations".format(gdf.shape[0]))
-    print(f"Across {3*(len(np.unique(gdf.loc[:, 'rgt'])) + len(np.unique(gdf.loc[:, 'cycle'])))} strong tracks")
+    print(f"Across {len(trackList)} strong tracks")
     # Exception here is only necessary when importing csv's
     try: print(f"Date range {gdf.index.min().date()} to {gdf.index.max().date()}")
-    except: print(f"Date range {pd.to_datetime(gdf.index, format='ISO8601').min().date()} to {pd.to_datetime(gdf.index, format='ISO8601').max().date()}")
+    except: 
+        try: print(f"Date range {pd.to_datetime(gdf.index, format='ISO8601').min().date()} to {pd.to_datetime(gdf.index, format='ISO8601').max().date()}")
+        except: print('ERROR: failed to properly format date range')
     '''
     except: print(f"Date range {datetime.strptime(gdf.index.min()[:-3], '%Y-%m-%d %H:%M:%S.%f').date()}" 
         f" to {datetime.strptime(gdf.index.max()[:-3], '%Y-%m-%d %H:%M:%S.%f').date()}")
     '''
     print(f"Vertical range {gdf.h_mean.min()}m to {gdf.h_mean.max()}m")
+    print("*********************************************************")
     return
 
 def filter_yapc(gdf, score=0):
@@ -154,25 +160,31 @@ def get06Data(parms, file06_load=None, accessType=0, file06_save=None, sFlag06=0
     Get ATL06 data using specified method (open .geojson, .csv, or process new using sliderule)
     If processing anew, save as .geojson or .csv if specified
     '''
-    if not os.path.isfile(file06_load): accessType=0
+    if not os.path.isfile(file06_load+'.geojson'): 
+        print(f'file not found: {file06_load}')
+        print('processing fresh')
+        accessType=0
     
     if accessType == 0:
-        print('Processing new ATL06-SR dataset')
-
+        print('Processing new ATL06-SR dataset...     ', end='')
         # Request ATL06 Data
         atl06_sr = icesat2.atl06p(parms)
         atl06_sr = atl06_sr[(atl06_sr.spot==2)+(atl06_sr.spot==4)+(atl06_sr.spot==6)]
+        print('DONE')
+        
 
         # Display Statistics 
         if verbose: 
             try: display06Info(atl06_sr)
-            except: print('Error displaying all info')
+            except: print('ERROR: Cannot display all info')
 
         # Save all data
         if sFlag06==1:
             # save geodataframe as geojson
-            print(f'Saving file as geojson named {file06_save}.geojson')
+            print(f'Saving to {file06_save}.geojson...     ', end='')
+            if not os.path.exists(file06_save): os.makedirs(file06_save)
             atl06_sr.to_file(f"{file06_save}.geojson", driver='GeoJSON')
+            print('DONE')
         elif sFlag06==2:
             # Save geodataframe as csv
             print(f'Saving file as csv named {file06_save}.csv')
@@ -185,11 +197,6 @@ def get06Data(parms, file06_load=None, accessType=0, file06_save=None, sFlag06=0
         if verbose: 
             try: display06Info(atl06_sr)
             except: print('Error displaying all info')
-    elif accessType==2:
-        # Load from csv (everything is a string)
-        print('Downloading atl06-SR data upload from .csv file')
-        atl06_sr = gpd.read_file(f"{file06_load}.csv").set_index('time')
-        if verbose: display06Info(atl06_sr)
     elif accessType==-1:
         print('skipping data download altogether')
     return atl06_sr
@@ -203,15 +210,15 @@ def getDateTime(timestp):
     dat, tim = timestp.date(), timestp.time().strftime("%H:%M:%S")
     return f"{dat}T{tim}Z"
 
-def getRegion(site, cycle):
+def getRegion(shelf, site, cycle, return_gdf=False):
     
     '''
     given site, cycle, opens available .geojson geometry and imports it as a geodataframe geometry
     '''
     
     try:     
-        shpPath = f"../shapes/{shelf}/{site}_{cycle}.geojson"
-        if not os.path.isfile(shpPath): shpPath = f"../shapes/{shelf}/{site}_00.geojson"
+        shpPath = f"../shapes/{shelf}/{shelf}_{site}_{cycle}.geojson"
+        if not os.path.isfile(shpPath): shpPath = f"../shapes/{shelf}/{shelf}_{site}_00.geojson"
         # Read in EPSG:3031 shapefile and convert to EPSG:4326
         shpFile = gpd.read_file(shpPath)
         shpFile.crs = 'EPSG:3031'
@@ -221,6 +228,7 @@ def getRegion(site, cycle):
     except: 
         print(f'Error getting region: .geojson geometry may not exist for {site}, cycle {cycle}')
         print(f' at path {shpPath}')
+    if return_gdf: return shpDF
     return region
 
 def getTrack(dat, trackInfo):
@@ -236,7 +244,7 @@ def getTrack(dat, trackInfo):
 def getTrackList(gdf, return_lens=False, omit=None, min_photons=200, verbose=False):
     
     '''
-    Generate a list of available grount tracks in format cycle, rgt, gt (beam)
+    Generate a list of available ground tracks in format cycle, rgt, gt (beam)
     '''
     
     rgtAll = list(gdf["rgt"].unique())
@@ -247,12 +255,14 @@ def getTrackList(gdf, return_lens=False, omit=None, min_photons=200, verbose=Fal
     
     if verbose:
         print(f'Finding tracks with minimum of {min_photons} photons')
-        
+
+    # omit tracks specified in kwargs
     if type(omit)==list: 
         for k in omit: 
             rgtAll.remove(k)
         if verbose: print(f'Removed {len(omit)} tracks')
-        
+
+    # assemble track list with minimum specified photons
     for cyc in cycleAll:
         for r in rgtAll:
             for g in gtAll:
@@ -263,8 +273,7 @@ def getTrackList(gdf, return_lens=False, omit=None, min_photons=200, verbose=Fal
     
         
     if verbose: 
-        print(f'{len(lens)} found')
-        print(lens) 
+        print(f'{len(lens)} found with lengths {lens}')
     
     if return_lens: return tracks, lens
     return tracks

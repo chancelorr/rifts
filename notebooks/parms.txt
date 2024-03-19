@@ -1,0 +1,28 @@
+# My params from previous runs using ATL03 confidence values
+parms = {
+    "poly": t.getRegion(shelf, site, cycle),
+    "srt": 0,
+    "len": len, # usually res*2
+    "res": res, # usually 10.0
+    "cnf": cnf, # usually 0 (should probably be -1)
+    "maxi": 6,
+    "ats": 5.0,
+    "cnt": 5,
+    "H_min_win": 3.0,
+    "sigma_r_max": 5.0,
+    "cycle": cycle,
+    "atl03_geo_fields": ['geoid', 'dem_h', 'dem_flag', 'tide_earth', 'tide_ocean', 'geoid_free2mean', 'tide_earth_free2mean']
+}
+
+# from susan 
+score=192
+parmsyp = {
+    "poly": my_region,
+     "cnf": -1,
+    "yapc": { "score": score, "knn": 0, "min_ph": 4 , "win_h": 3, "win_x": 15},
+    "ats": 10.0,
+    "cnt": 10,
+    "len": 20.0,
+    "res": 10.0,
+    "maxi": 3
+}
