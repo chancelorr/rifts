@@ -8,6 +8,7 @@ import re
 import time
 import h5py as h
 import matplotlib.pyplot as plt
+import pandas as pd
 import geopandas as gpd
 from sliderule import sliderule, icesat2, earthdata, h5, ipysliderule, io
 from IPython import display
@@ -133,7 +134,7 @@ def display06Info(gdf):
     print("Received {} elevations".format(gdf.shape[0]))
     print(f"Across {len(trackList)} strong tracks")
     # Exception here is only necessary when importing csv's
-    try: print(f"Date range {gdf.index.min().date()} to {gdf.index.max().date()}")
+    try: print(f"Date range {gdf.time.min().date()} to {gdf.time.max().date()}")
     except: 
         try: print(f"Date range {pd.to_datetime(gdf.index, format='ISO8601').min().date()} to {pd.to_datetime(gdf.index, format='ISO8601').max().date()}")
         except: print('ERROR: failed to properly format date range')
@@ -164,11 +165,11 @@ def get06Data(parms, file06_load=None, accessType=0, file06_save=None, sFlag06=0
         print(f'file not found: {file06_load}')
         print('processing fresh')
         accessType=0
-    
+    ###
     if accessType == 0:
         print('Processing new ATL06-SR dataset...     ', end='')
         # Request ATL06 Data
-        atl06_sr = icesat2.atl06p(parms)
+        atl06_sr = icesat2.atl06p(parms).reset_index()
         atl06_sr = atl06_sr[(atl06_sr.spot==2)+(atl06_sr.spot==4)+(atl06_sr.spot==6)]
         print('DONE')
         
@@ -181,9 +182,11 @@ def get06Data(parms, file06_load=None, accessType=0, file06_save=None, sFlag06=0
         # Save all data
         if sFlag06==1:
             # save geodataframe as geojson
+            file06_save_path = os.path.dirname(file06_save)
             print(f'Saving to {file06_save}.geojson...     ', end='')
-            if not os.path.exists(file06_save): os.makedirs(file06_save)
-            atl06_sr.to_file(f"{file06_save}.geojson", driver='GeoJSON')
+            if not os.path.exists(file06_save_path): os.makedirs(file06_save_path)
+            atl06_sr.time = atl06_sr.time.astype('str')
+            toGeojson(atl06_sr, file06_save)
             print('DONE')
         elif sFlag06==2:
             # Save geodataframe as csv
@@ -192,8 +195,20 @@ def get06Data(parms, file06_load=None, accessType=0, file06_save=None, sFlag06=0
 
     elif accessType==1:
         #load from geojson
-        print('Downloading atl06-SR data upload from .geojson file')
-        atl06_sr = gpd.read_file(f"{file06_load}.geojson").set_index('time')
+        print('Downloading atl06-SR data upload from .geojson file...    ', end='')
+        atl06_sr = gpd.read_file(f"{file06_load}.geojson")#.set_index('time')
+        print('DONE')
+        
+        # Convert datetimes simply from string
+        # Otherwise use a more robust but messy method if formats are inconsistent
+        try: datetimes = pd.to_datetime(atl06_sr.time, errors='raise')
+        except:
+            print('Inconsistent datetime formats, trying two-step datetime conversion')
+            datetimes = np.array(pd.to_datetime(atl06_sr.time, format="%Y-%m-%dT%H:%M:%S.%f", errors='coerce'))
+            datetimes[pd.isna(datetimes)] = pd.to_datetime(atl06_sr.time[pd.isna(datetimes)], format="%Y-%m-%dT%H:%M:%S", errors='coerce')
+            datetimes = pd.Index(datetimes)
+    	
+        atl06_sr.time = datetimes
         if verbose: 
             try: display06Info(atl06_sr)
             except: print('Error displaying all info')
@@ -289,9 +304,11 @@ def toGeojson(dat, filename):
     
     '''
     Save geodataframe as a .geojson
+    Convert time to string first so pandas doesnt mess it up
     '''
     
     #datReduced = dat.loc[:, ['cycle', 'rgt', 'spot', 'h_mean', 'geometry']]
+    dat.time = dat.time.astype('str')
     dat.to_file(f"{filename}.geojson", driver='GeoJSON')
     return
 
