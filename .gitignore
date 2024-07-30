@@ -115,3 +115,4 @@ venv.bak/
 *.csv
 data/*
 figs/*
+shapes/*
