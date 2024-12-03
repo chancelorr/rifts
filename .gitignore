@@ -1,6 +1,10 @@
 # dsstore sometimes comes in on mac
 .DS_Store
 
+# configs
+notebooks/config/*
+!notebooks/config/config_template.ini
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
